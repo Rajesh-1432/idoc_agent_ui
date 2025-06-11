@@ -1,0 +1,11 @@
+version: '3.8'
+
+services:
+  idoc_agent_ui:
+    build:
+      context: .                
+      dockerfile: Dockerfile   
+    ports:
+      - "3004:3004"
+    container_name: idoc_agent_ui_container
+    restart: unless-stopped

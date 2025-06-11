@@ -1,6 +1,7 @@
 import { Bell, Home, Menu, MessageCircle, Search, User, X } from 'lucide-react';
 import { useState } from 'react';
 import { Link, Outlet, useLocation } from 'react-router-dom';
+import logo from '../assets/ai.png'
 
 const Layout = () => {
     const [sidebarOpen, setSidebarOpen] = useState(false);
@@ -12,13 +13,13 @@ const Layout = () => {
 
     ];
 
-   const handleMenuClick = () => {
+    const handleMenuClick = () => {
         setSidebarOpen(false);
     };
 
     return (
         <div className="flex h-screen bg-gray-100">
-            <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
+            {/* <div className={`fixed inset-y-0 left-0 z-50 w-64 bg-white shadow-lg transform ${sidebarOpen ? 'translate-x-0' : '-translate-x-full'
                 } transition-transform duration-300 ease-in-out lg:translate-x-0 lg:static lg:inset-0`}>
                 <div className="flex items-center justify-between p-[14px] border-b border-gray-200">
                     <div className="flex items-center space-x-2">
@@ -66,23 +67,27 @@ const Layout = () => {
                         </div>
                     </div>
                 </div>
-            </div>
+            </div> */}
             <div className="flex-1 flex flex-col overflow-hidden lg:ml-0">
-                <header className="bg-white shadow-sm border-b border-gray-200 px-4 py-3">
-                    <div className="flex items-center justify-between">
+                <header className="bg-white shadow-sm border-b border-gray-200 px-6 py-3">
+                    <div className="flex items-center justify-between w-full">
+
+                        <div className="flex items-center space-x-3">
+                            <img src={logo} alt="logo" className="h-16 w-auto object-contain" />
+                        </div>
+
+                        <h1 className="text-lg font-medium text-gray-800 text-center absolute left-1/2 transform -translate-x-1/2">
+                            {menuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
+                        </h1>
+
                         <div className="flex items-center space-x-4">
                             <button
                                 onClick={() => setSidebarOpen(true)}
-                                className="lg:hidden p-2 rounded-md text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+                                className="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
                             >
-                                <Menu size={20} />
+                                <Menu size={22} />
                             </button>
-                            <h1 className="text-xl font-semibold text-gray-800">
-                                {menuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
-                            </h1>
-                        </div>
-                        <div className="flex items-center space-x-4">
-                            <div className="hidden md:flex items-center space-x-2 bg-gray-100 rounded-lg px-3 py-2">
+                            <div className="hidden md:flex items-center space-x-2 bg-gray-100 rounded-full px-3 py-2">
                                 <Search size={16} className="text-gray-400" />
                                 <input
                                     type="text"
@@ -90,16 +95,15 @@ const Layout = () => {
                                     className="bg-transparent border-none outline-none text-sm text-gray-700 placeholder-gray-400"
                                 />
                             </div>
-                            <button className="relative p-2 text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-lg">
+                            <button className="relative p-2 text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded-lg">
                                 <Bell size={20} />
                                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                             </button>
-                            <div className="w-8 h-8 bg-blue-600 rounded-full flex items-center justify-center cursor-pointer">
-                                <span className="text-white text-sm font-medium">JD</span>
-                            </div>
                         </div>
+
                     </div>
                 </header>
+
                 <main className="flex-1 overflow-y-auto bg-gray-50 p-6">
                     <Outlet />
                 </main>

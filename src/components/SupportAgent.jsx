@@ -309,7 +309,6 @@ const SupportAgent = () => {
     );
   };
 
-  // Create responsive table component
   // Create responsive table component with IDOC number as first column
   const ResponsiveTable = ({ data, title }) => {
     if (!data || data.length === 0) {
@@ -418,7 +417,7 @@ const SupportAgent = () => {
     return (
       <div className="bg-gray-50 border-b border-gray-200 p-4">
         <div className="max-w-7xl mx-auto">
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
             <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
               <div className="flex items-center space-x-3">
                 <div className="bg-blue-100 p-2 rounded-lg">
@@ -427,8 +426,21 @@ const SupportAgent = () => {
                   </svg>
                 </div>
                 <div>
-                  <p className="text-sm font-medium text-gray-600">Total IDOC Proccess</p>
-                  <p className="text-2xl font-bold text-blue-600">{500 + idocSuccessCount + idocFailureCount}</p>
+                  <p className="text-sm font-medium text-gray-600">Yearly IDOC Proccess</p>
+                  <p className="text-2xl font-bold text-blue-600">{1500 + idocSuccessCount + idocFailureCount}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <svg className="w-6 h-6 text-amber-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Monthly IDOC Proccess</p>
+                  <p className="text-2xl font-bold text-amber-400">{500 + idocSuccessCount + idocFailureCount}</p>
                 </div>
               </div>
             </div>
@@ -465,10 +477,10 @@ const SupportAgent = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50">
+    <div className="flex flex-col h-screen bg-gray-50 ">
       <CountCards />
 
-      <div className="flex flex-1 overflow-hidden">
+      <div className="flex flex-1 overflow-hidden ">
         {/* Left Panel - Only visible when processing */}
         {!noDataFound && Object.values(loadingStates).some(state => state.visible) && (
           <div className="w-80 bg-white border-r border-gray-200 flex-shrink-0">

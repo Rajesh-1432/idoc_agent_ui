@@ -8,7 +8,7 @@ const Layout = () => {
     const location = useLocation();
 
     const menuItems = [
-        { path: "/", label: "IDOC REPPROCESS ACTION AGENTS", icon: <Home size={20} /> },
+        { path: "/", label: "IDOC REPPROCESS AGENTS", icon: <Home size={20} /> },
         // { path: "/demo2", label: "Demo2", icon: <MessageCircle size={20} /> },
 
     ];

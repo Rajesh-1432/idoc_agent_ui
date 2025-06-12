@@ -8,7 +8,7 @@ const Layout = () => {
     const location = useLocation();
 
     const menuItems = [
-        { path: "/", label: "IDOC Agent", icon: <Home size={20} /> },
+        { path: "/", label: "IDOC REPPROCESS ACTION AGENTS", icon: <Home size={20} /> },
         // { path: "/demo2", label: "Demo2", icon: <MessageCircle size={20} /> },
 
     ];
@@ -73,14 +73,15 @@ const Layout = () => {
                     <div className="flex items-center justify-between w-full">
 
                         <div className="flex items-center space-x-3">
-                            <img src={logo} alt="logo" className="h-16 w-auto object-contain" />
+                            {/* <img src={logo} alt="logo" className="h-16 w-auto object-contain" /> */}
+                            <h1 className='text-2xl font-bold text-red-600  ml-8 '>CERES</h1>
                         </div>
 
                         <h1 className="text-lg font-medium text-gray-800 text-center absolute left-1/2 transform -translate-x-1/2">
                             {menuItems.find(item => item.path === location.pathname)?.label || 'Dashboard'}
                         </h1>
 
-                        <div className="flex items-center space-x-4">
+                        {/* <div className="flex items-center space-x-4">
                             <button
                                 onClick={() => setSidebarOpen(true)}
                                 className="lg:hidden p-2 rounded-md text-gray-500 hover:text-gray-700 hover:bg-gray-100"
@@ -99,7 +100,7 @@ const Layout = () => {
                                 <Bell size={20} />
                                 <span className="absolute top-1 right-1 w-2 h-2 bg-red-500 rounded-full"></span>
                             </button>
-                        </div>
+                        </div> */}
 
                     </div>
                 </header>

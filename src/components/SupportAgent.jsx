@@ -12,7 +12,7 @@ const SupportAgent = () => {
   const [syncResults, setSyncResults] = useState([]);
   const [noDataFound, setNoDataFound] = useState(false);
 
-  // Helper function to clean MongoDB data
+  // Helper function to clean MongoDB data and remove _id fields
   const cleanMongoData = (data) => {
     if (!data) return data;
 
@@ -23,9 +23,9 @@ const SupportAgent = () => {
     if (typeof data === 'object' && data !== null) {
       const cleaned = {};
       for (const [key, value] of Object.entries(data)) {
-        if (key === '_id' && value && typeof value === 'object' && value.$oid) {
-          // Convert MongoDB ObjectId to string
-          cleaned[key] = value.$oid;
+        // Skip _id field entirely
+        if (key === '_id') {
+          continue;
         } else if (typeof value === 'object' && value !== null) {
           cleaned[key] = cleanMongoData(value);
         } else {
@@ -95,9 +95,7 @@ const SupportAgent = () => {
 
   // Each section's loading and visibility state
   const [loadingStates, setLoadingStates] = useState({
-    mainCategoryML: { visible: true, loading: false },
     mainCategoryNLP: { visible: false, loading: false },
-    previousTicket: { visible: false, loading: false },
     mlSubCategory: { visible: false, loading: false },
     nlpSubCategory: { visible: false, loading: false },
     response: { visible: false, loading: false }
@@ -105,55 +103,10 @@ const SupportAgent = () => {
 
   // Mock response data for the IDOC issue
   const mockResponseData = {
-    mainCategoryML: {
-      title: "Main Category: Analysis",
-      runningMessage: "Running: main_ml_triage_agent_predict_tool(incident_description=['psdata idoc sales order issues'])",
-      result: "ML Predicted Main Category: Idoc Issue"
-    },
     mainCategoryNLP: {
-      title: "Categeorization",
+      title: "Categorization",
       runningMessage: "Running: main_nlp_triage_agent_predict_tool(issue_description=psdata idoc sales order issues)",
       result: "NLP Predicted Main Category: Idoc Issue"
-    },
-    previousTicket: {
-      title: "Previous Ticket Analysis",
-      runningMessage: "Running: ticket_analysis_rag_agent(query=psdata idoc sales order issues)",
-      incidents: [
-        {
-          incidentNumber: "Not specified",
-          errorMessage: "Purchase order still contains faulty items",
-          sapDetails: {
-            sapId: "MEPO",
-            sapModule: "Addon",
-            systemClient: "SP1CLNT1/100"
-          }
-        },
-        {
-          incidentNumber: "Not specified",
-          errorMessage: "Status \"Obsolete\" of material 5002858 does not allow external procurement",
-          sapDetails: {
-            sapId: "ME",
-            sapModule: "Addon",
-            systemClient: "SP1CLNT1/100"
-          }
-        },
-        {
-          incidentNumber: "Not specified",
-          errorMessage: "Tax jurisdiction code not allowed for tax calculation schema TAXUSJ",
-          sapDetails: {
-            sapId: "06",
-            sapModule: "Addon",
-            systemClient: "SP1CLNT1/100"
-          }
-        }
-      ],
-      analysis: [
-        "Faulty Items: Ensure that all items in the purchase order are valid and correctly entered. This may include checking for entry errors or missing data.",
-        "Material Status: Verify that the status of the material allows for external procurement. If a material is marked as \"Obsolete\", it might need to be updated or replaced with a valid material.",
-        "Tax Jurisdiction: Validate the tax jurisdiction code setup in the system to ensure compliance with the tax calculation schema being used.",
-        "General Troubleshooting: Always verify the related configurations in SAP for each identified module (e.g., Addon). Make sure the module and screen settings align with the operational requirements of the sales order."
-      ],
-      conclusion: "These tickets suggest cross-verifying the current setup and data accuracy for IDOCs related to sales orders, focusing on areas like data entry and configuration settings for procurement and taxation."
     },
     mlSubCategory: {
       title: "Action",
@@ -216,9 +169,7 @@ const SupportAgent = () => {
 
     // Reset all loading states and visibility
     setLoadingStates({
-      mainCategoryML: { visible: false, loading: false },
       mainCategoryNLP: { visible: false, loading: false },
-      previousTicket: { visible: false, loading: false },
       mlSubCategory: { visible: false, loading: false },
       nlpSubCategory: { visible: false, loading: false },
       response: { visible: false, loading: false }
@@ -228,20 +179,9 @@ const SupportAgent = () => {
     const headingDelay = 900;  // Delay before showing next heading
 
     // Sequential order of components
-    const sequence = ['mainCategoryML', 'mainCategoryNLP', 'previousTicket', 'mlSubCategory', 'nlpSubCategory', 'response'];
+    const sequence = ['mainCategoryNLP', 'mlSubCategory', 'nlpSubCategory', 'response'];
 
-    // First make mainCategoryML heading visible
-    setTimeout(() => {
-      setLoadingStates(prev => ({
-        ...prev,
-        mainCategoryML: { visible: true, loading: true }
-      }));
-
-      // Execute the sequence
-      executeSequence(0);
-    }, 500);
-
-    // Function to execute the sequence of components
+    // Execute the sequence
     const executeSequence = (index) => {
       if (index >= sequence.length) {
         setIsLoading(false);
@@ -250,6 +190,12 @@ const SupportAgent = () => {
 
       const currentItem = sequence[index];
       const nextItem = sequence[index + 1];
+
+      // Make current item visible with loading
+      setLoadingStates(prev => ({
+        ...prev,
+        [currentItem]: { visible: true, loading: true }
+      }));
 
       // Process current item content
       setTimeout(() => {
@@ -265,15 +211,9 @@ const SupportAgent = () => {
           [currentItem]: { visible: true, loading: false }
         }));
 
-        // Make next item visible if there is one
+        // Process next item
         if (nextItem) {
           setTimeout(() => {
-            setLoadingStates(prev => ({
-              ...prev,
-              [nextItem]: { visible: true, loading: true }
-            }));
-
-            // Process next item
             executeSequence(index + 1);
           }, headingDelay);
         } else {
@@ -290,14 +230,16 @@ const SupportAgent = () => {
         }
       }, timeout);
     };
+
+    setTimeout(() => {
+      executeSequence(0);
+    }, 500);
   };
 
   // Get loading messages for each section
   const getLoadingMessage = (section) => {
     const messages = {
-      mainCategoryML: mockResponseData.mainCategoryML.runningMessage,
       mainCategoryNLP: mockResponseData.mainCategoryNLP.runningMessage,
-      previousTicket: mockResponseData.previousTicket.runningMessage,
       mlSubCategory: mockResponseData.mlSubCategory.runningMessage,
       nlpSubCategory: mockResponseData.nlpSubCategory.runningMessage,
       response: "Generating response..."
@@ -308,156 +250,58 @@ const SupportAgent = () => {
   // Left panel components (ML categories)
   const LeftComponents = () => {
     return (
-      <div className="flex flex-col h-full">
-        <div className="flex flex-col h-full space-y-6">
-          {/* Main Category ML Section */}
-          {loadingStates.mainCategoryML.visible && (
-            <div className="flex-1 min-h-0 overflow-auto">
-              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">{mockResponseData.mainCategoryML.title}</h2>
-              {loadingStates.mainCategoryML.loading ? (
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm text-gray-500">{getLoadingMessage('mainCategoryML')}</p>
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                  </div>
-                </div>
-              ) : responseData.mainCategoryML ? (
-                <div className="bg-white px-6 py-4 rounded-2xl shadow-md w-full max-w-sm flex justify-around items-center space-x-4">
-                  <div className="text-center">
-                    <p className="text-lg font-medium text-gray-700">Total Success</p>
-                    <p className="text-3xl font-bold text-green-600 mt-1">{idocSuccessCount}</p>
-                  </div>
-                  <div className="text-center">
-                    <p className="text-lg font-medium text-gray-700">Total Error</p>
-                    <p className="text-3xl font-bold text-red-500 mt-1">{idocFailureCount}</p>
-                  </div>
-                </div>
+      <div className="flex flex-col h-full p-6">
+        <h1 className="text-2xl font-bold text-gray-800 mb-6 border-b border-gray-200 pb-3">Processing Steps</h1>
 
-              ) : (
-                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
-                </div>
-              )}
-            </div>
-          )}
-
+        <div className="flex flex-col space-y-6 flex-1">
           {/* Main Category NLP Section */}
           {loadingStates.mainCategoryNLP.visible && (
-            <div className="flex-1 min-h-0 overflow-auto">
-              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">{mockResponseData.mainCategoryNLP.title}</h2>
+            <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-indigo-500">
+              <h2 className="text-lg font-semibold mb-3 text-gray-800">{mockResponseData.mainCategoryNLP.title}</h2>
               {loadingStates.mainCategoryNLP.loading ? (
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm text-gray-500">{getLoadingMessage('mainCategoryNLP')}</p>
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                  </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+                  <p className="text-sm text-gray-600">{getLoadingMessage('mainCategoryNLP')}</p>
                 </div>
               ) : responseData.mainCategoryNLP ? (
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <p>{responseData.mainCategoryNLP.result}</p>
+                <div className="bg-white p-3 rounded border">
+                  <p className="text-sm text-gray-700">{responseData.mainCategoryNLP.result}</p>
                 </div>
-              ) : (
-                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
-                </div>
-              )}
+              ) : null}
             </div>
           )}
 
           {/* ML Sub Category Section */}
           {loadingStates.mlSubCategory.visible && (
-            <div className="flex-1 min-h-0 overflow-auto">
-              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">{mockResponseData.mlSubCategory.title}</h2>
+            <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-green-500">
+              <h2 className="text-lg font-semibold mb-3 text-gray-800">{mockResponseData.mlSubCategory.title}</h2>
               {loadingStates.mlSubCategory.loading ? (
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm text-gray-500">{getLoadingMessage('mlSubCategory')}</p>
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                  </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
+                  <p className="text-sm text-gray-600">{getLoadingMessage('mlSubCategory')}</p>
                 </div>
               ) : responseData.mlSubCategory ? (
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <p>{responseData.mlSubCategory.result}</p>
+                <div className="bg-white p-3 rounded border">
+                  <p className="text-sm text-gray-700">{responseData.mlSubCategory.result}</p>
                 </div>
-              ) : (
-                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
-                </div>
-              )}
-            </div>
-          )}
-        </div>
-      </div>
-    );
-  };
-
-  // Right panel components (NLP categories and previous tickets)
-  const RightComponents = () => {
-    return (
-      <div className="flex flex-col h-full">
-        <div className="flex flex-col h-full space-y-6">
-          {/* Previous Ticket Analysis Section */}
-          {loadingStates.previousTicket.visible && (
-            <div className="flex-1 min-h-0 overflow-auto">
-              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">{mockResponseData.previousTicket.title}</h2>
-              {loadingStates.previousTicket.loading ? (
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm text-gray-500">{getLoadingMessage('previousTicket')}</p>
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                  </div>
-                </div>
-              ) : responseData.previousTicket ? (
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  {responseData.previousTicket.incidents.map((incident, idx) => (
-                    <div key={idx} className="mb-4 pb-3 border-b border-gray-200">
-                      <p className="font-semibold">Similar Incident Found:</p>
-                      <p>Incident Number: {incident.incidentNumber}</p>
-                      <p>Error Message: {incident.errorMessage}</p>
-                      <p className="font-semibold mt-1">SAP Details:</p>
-                      <p>SAP Id: {incident.sapDetails.sapId}</p>
-                      <p>SAP Module: {incident.sapDetails.sapModule}</p>
-                      <p>System/Client: {incident.sapDetails.systemClient}</p>
-                    </div>
-                  ))}
-                  <div className="mt-4">
-                    <p className="font-semibold">Previous Ticket Analysis:</p>
-                    {responseData.previousTicket.analysis.map((item, idx) => (
-                      <p key={idx} className="mt-2">{item}</p>
-                    ))}
-                    <p className="mt-3">{responseData.previousTicket.conclusion}</p>
-                  </div>
-                </div>
-              ) : (
-                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-3/4 mb-3"></div>
-                  <div className="h-4 bg-gray-200 rounded w-2/3 mb-3"></div>
-                  <div className="h-4 bg-gray-200 rounded w-4/5"></div>
-                </div>
-              )}
+              ) : null}
             </div>
           )}
 
           {/* NLP Sub Category Section */}
           {loadingStates.nlpSubCategory.visible && (
-            <div className="flex-1 min-h-0 overflow-auto">
-              <h2 className="text-xl font-bold mb-4 sticky top-0 bg-white z-10 py-2">{mockResponseData.nlpSubCategory.title}</h2>
+            <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-purple-500">
+              <h2 className="text-lg font-semibold mb-3 text-gray-800">{mockResponseData.nlpSubCategory.title}</h2>
               {loadingStates.nlpSubCategory.loading ? (
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <div className="flex items-center space-x-2">
-                    <p className="text-sm text-gray-500">{getLoadingMessage('nlpSubCategory')}</p>
-                    <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                  </div>
+                <div className="flex items-center space-x-3">
+                  <div className="w-4 h-4 border-2 border-gray-300 border-t-purple-500 rounded-full animate-spin"></div>
+                  <p className="text-sm text-gray-600">{getLoadingMessage('nlpSubCategory')}</p>
                 </div>
               ) : responseData.nlpSubCategory ? (
-                <div className="bg-gray-100 p-4 rounded-lg">
-                  <p>{responseData.nlpSubCategory.result}</p>
+                <div className="bg-white p-3 rounded border">
+                  <p className="text-sm text-gray-700">{responseData.nlpSubCategory.result}</p>
                 </div>
-              ) : (
-                <div className="bg-gray-100 p-4 rounded-lg animate-pulse">
-                  <div className="h-4 bg-gray-200 rounded w-1/2 mb-3"></div>
-                </div>
-              )}
+              ) : null}
             </div>
           )}
         </div>
@@ -466,6 +310,7 @@ const SupportAgent = () => {
   };
 
   // Create responsive table component
+  // Create responsive table component with IDOC number as first column
   const ResponsiveTable = ({ data, title }) => {
     if (!data || data.length === 0) {
       return (
@@ -478,211 +323,296 @@ const SupportAgent = () => {
       );
     }
 
+    // Function to reorder columns with IDOC number first
+    const getOrderedColumns = (dataRow) => {
+      const allKeys = Object.keys(dataRow);
+
+      // Find IDOC number column (case-insensitive search)
+      const idocKey = allKeys.find(key =>
+        key.toLowerCase().includes('idoc') && key.toLowerCase().includes('number')
+      ) || allKeys.find(key =>
+        key.toLowerCase().includes('idoc_number')
+      ) || allKeys.find(key =>
+        key.toLowerCase().includes('idocnumber')
+      ) || allKeys.find(key =>
+        key.toLowerCase() === 'idoc'
+      );
+
+      if (idocKey) {
+        // Put IDOC number first, then all other columns
+        const otherKeys = allKeys.filter(key => key !== idocKey);
+        return [idocKey, ...otherKeys];
+      }
+
+      // If no IDOC number column found, return original order
+      return allKeys;
+    };
+
+    const orderedColumns = getOrderedColumns(data[0]);
+
     return (
-      <div className="mb-6 overflow-x-auto">
-        <h3 className="font-bold text-lg mb-2">{title}</h3>
-        <div className="border border-gray-200 rounded-lg">
-          <table className="min-w-full divide-y divide-gray-200">
-            <thead className="bg-gray-50">
-              <tr>
-                {Object.keys(data[0]).map((header, idx) => (
-                  <th key={idx} className="px-3 py-2 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
-                    {header.replace(/_/g, ' ')}
-                  </th>
-                ))}
-              </tr>
-            </thead>
-            <tbody className="bg-white divide-y divide-gray-200">
-              {data.map((row, rowIdx) => (
-                <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
-                  {Object.values(row).map((cell, cellIdx) => (
-                    <td key={cellIdx} className="px-3 py-2 text-xs text-gray-500">
-                      {typeof cell === 'object' && cell !== null ? JSON.stringify(cell) : String(cell)}
-                    </td>
+      <div className="mb-6">
+        {title && <h3 className="font-bold text-lg mb-3 text-gray-800">{title}</h3>}
+        <div className="bg-white border border-gray-200 rounded-lg shadow-sm overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="min-w-full divide-y divide-gray-200">
+              <thead className="bg-gray-50">
+                <tr>
+                  {orderedColumns.map((header, idx) => (
+                    <th key={idx} className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${idx === 0 && header.toLowerCase().includes('idoc') ? 'bg-indigo-0' : ''
+                      }`}>
+                      {header.replace(/_/g, ' ')}
+                    </th>
                   ))}
                 </tr>
-              ))}
-            </tbody>
-          </table>
+              </thead>
+              <tbody className="bg-white divide-y divide-gray-200">
+                {data.map((row, rowIdx) => (
+                  <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
+                    {orderedColumns.map((columnKey, cellIdx) => (
+                      <td key={cellIdx} className={`px-4 py-3 text-sm text-gray-700 ${cellIdx === 0 && columnKey.toLowerCase().includes('idoc') ? 'font-semibold bg-indigo-0' : ''
+                        }`}>
+                        {typeof row[columnKey] === 'object' && row[columnKey] !== null
+                          ? JSON.stringify(row[columnKey])
+                          : String(row[columnKey] || '')}
+                      </td>
+                    ))}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
         </div>
       </div>
     );
   };
-
   // Sync results component
   const SyncResultsComponent = ({ syncResults }) => {
     return (
       <div className="mb-6">
         <div className="space-y-4">
-          <p className="font-medium">The following mismatches were found between the IDOC data and the sales data, and they have been updated:</p>
+          <p className="font-medium text-gray-800">The following mismatches were found between the IDOC data and the sales data, and they have been updated:</p>
           {syncResults.map((result, idx) => (
-            <div key={idx} className="pl-2 border-l-2 border-indigo-400">
-              <p className="font-bold">{idx + 1}. IDOC Number: {result.idocNumber}</p>
-              <ul className="pl-4 mt-1 space-y-1">
+            <div key={idx} className="pl-4 border-l-2 border-indigo-400 bg-indigo-50 p-3 rounded-r">
+              <p className="font-bold text-gray-800">{idx + 1}. IDOC Number: {result.idocNumber}</p>
+              <ul className="pl-4 mt-2 space-y-1">
                 {result.updates.map((update, updateIdx) => (
                   <li key={updateIdx} className="text-sm">
                     <span className="font-medium">{update.field}</span>:
-                    <span className="ml-1">`{update.value}`</span>
+                    <span className="ml-1 bg-gray-100 px-1 rounded">{update.value}</span>
                     {update.status === "updated" ?
-                      <span className="text-amber-600 ml-1">(was updated to match from `{update.oldValue}`)</span> :
+                      <span className="text-amber-600 ml-1">(was updated to match from <span className="bg-gray-100 px-1 rounded">{update.oldValue}</span>)</span> :
                       <span className="text-green-600 ml-1">(matched)</span>}
                   </li>
                 ))}
               </ul>
             </div>
           ))}
-          <p className="text-green-700 font-medium">These discrepancies have been successfully reconciled to ensure data consistency between the IDOC and sales records.</p>
+          <p className="text-green-700 font-medium bg-green-50 p-3 rounded border border-green-200">These discrepancies have been successfully reconciled to ensure data consistency between the IDOC and sales records.</p>
+        </div>
+      </div>
+    );
+  };
+
+  const CountCards = () => {
+    return (
+      <div className="bg-gray-50 border-b border-gray-200 p-4">
+        <div className="max-w-7xl mx-auto">
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center space-x-3">
+                <div className="bg-blue-100 p-2 rounded-lg">
+                  <svg className="w-6 h-6 text-blue-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Total IDOC Proccess</p>
+                  <p className="text-2xl font-bold text-blue-600">{500 + idocSuccessCount + idocFailureCount}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center space-x-3">
+                <div className="bg-green-100 p-2 rounded-lg">
+                  <svg className="w-6 h-6 text-green-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 12l2 2 4-4m6 2a9 9 0 11-18 0 9 9 0 0118 0z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Success as Today</p>
+                  <p className="text-2xl font-bold text-green-600">{300 + idocSuccessCount}</p>
+                </div>
+              </div>
+            </div>
+            <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 hover:shadow-md transition-shadow">
+              <div className="flex items-center space-x-3">
+                <div className="bg-red-100 p-2 rounded-lg">
+                  <svg className="w-6 h-6 text-red-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-2.5L13.732 4c-.77-.833-1.964-.833-2.732 0L3.732 16.5c-.77.833.192 2.5 1.732 2.5z" />
+                  </svg>
+                </div>
+                <div>
+                  <p className="text-sm font-medium text-gray-600">Error as Today</p>
+                  <p className="text-2xl font-bold text-red-600">{idocFailureCount}</p>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </div>
     );
   };
 
   return (
-    <div className="flex flex-col h-full bg-gray-50">
-      <div className="flex flex-grow overflow-hidden">
-        {/* Left Panel - Only visible after interaction */}
-        {!noDataFound && (
-          <div className="hidden md:block w-1/4 bg-white border-r border-gray-200 overflow-hidden">
-            <div className="p-4 h-full">
+    <div className="flex flex-col h-screen bg-gray-50">
+      <CountCards />
+
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Panel - Only visible when processing */}
+        {!noDataFound && Object.values(loadingStates).some(state => state.visible) && (
+          <div className="w-80 bg-white border-r border-gray-200 flex-shrink-0">
+            <div className="h-full overflow-y-auto">
               <LeftComponents />
             </div>
           </div>
         )}
-        <div className="flex-grow flex flex-col md:w-2/4 overflow-auto">
-          <div className="max-w-3xl mx-auto w-full">
-            {responseData.query && (
-              <div className="mb-6 flex justify-end">
-                <div className="bg-indigo-500 text-white p-4 rounded-lg rounded-tr-none max-w-md">
-                  <p>{responseData.query}</p>
-                </div>
-              </div>
-            )}
 
-            {/* No Data Found Message */}
-            {noDataFound && (
-              <div className="m-10">
-                <div className="flex flex-col bg-green-50 border border-green-200 p-6 rounded-lg shadow-sm items-center space-y-4 ">
-                  <div className="flex items-center space-x-3">
-                    <div className="text-green-500 text-2xl">✅</div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-green-800">No IDOC Issues Found</h3>
-
+        {/* Main Content Area */}
+        <div className="flex-1 min-w-0">
+          <div className="h-full overflow-y-auto">
+            <div className="p-6 max-w-none">
+              {/* No Data Found Message */}
+              {noDataFound && (
+                <div className="max-w-4xl mx-auto">
+                  <div className="flex flex-col bg-green-50 border border-green-200 p-8 rounded-lg shadow-sm items-center space-y-6">
+                    <div className="flex items-center space-x-4">
+                      <div className="text-green-500 text-3xl">✅</div>
+                      <div>
+                        <h3 className="text-2xl font-semibold text-green-800">No IDOC Issues Found</h3>
+                        <p className="text-green-700 mt-1">All IDOC processes are running smoothly</p>
+                      </div>
                     </div>
-                  </div>
-                  <div className="bg-white px-6 py-4 rounded-2xl shadow-md w-full max-w-sm flex justify-around items-center space-x-4">
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-gray-700">Total Success</p>
-                      <p className="text-3xl font-bold text-green-600 mt-1">{idocSuccessCount}</p>
-                    </div>
-                    <div className="text-center">
-                      <p className="text-lg font-medium text-gray-700">Total Error</p>
-                      <p className="text-3xl font-bold text-red-500 mt-1">{idocFailureCount}</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {/* Thanks Message */}
-            {thanksMsg && (
-              <div className="mb-6">
-                <div className="bg-indigo-50 border border-indigo-200 p-6 rounded-lg shadow-sm">
-                  <div className="flex items-center space-x-3">
-                    <div className="text-indigo-500 text-2xl">🙏</div>
-                    <div>
-                      <h3 className="text-lg font-semibold text-indigo-800">Thank you for choosing SAP Support!</h3>
-                      <p className="text-indigo-700 mt-1">We're glad we could help you with your IDOC inquiry.</p>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            )}
-
-            {loadingStates.response.visible ? (
-              loadingStates.response.loading ? (
-                <div className="mb-6">
-                  <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm max-w-full">
-                    <div className="flex items-center space-x-2">
-                      <p className="text-sm text-gray-500">{getLoadingMessage('response')}</p>
-                      <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
-                    </div>
-                  </div>
-                </div>
-              ) : responseData.finalResponse && !noDataFound ? (
-                <div className="mb-6 overflow-auto ">
-                  <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm">
-                    {/* New Table Response */}
-                    <h2 className="text-xl font-bold mb-3">{responseData.finalResponse.idocAgentTitle}</h2>
-                    <h3 className="text-lg font-semibold mb-2">{responseData.finalResponse.masterDataTitle}</h3>
-
-                    {/* IDOC Table */}
-                    <ResponsiveTable
-                      data={idocTableData}
-                      title=""
-                    />
-
-                    {/* Running Command */}
-                    <p className="font-semibold mb-1">{responseData.finalResponse.syncTitle}</p>
-                    <p className="mb-4 font-mono text-sm bg-gray-50 p-2 rounded">{responseData.finalResponse.syncCommand}</p>
-
-                    {/* Reprocess Prompt */}
-                    {showReprocessPrompt && (
-                      <div className="mt-4 bg-indigo-50 p-4 rounded-lg border border-indigo-200">
-                        <p className="font-bold text-indigo-800 mb-3">DO YOU WANT TO REPROCESS?</p>
-                        <div className="flex space-x-4">
-                          <button
-                            onClick={() => handleReprocessResponse('yes')}
-                            className="bg-indigo-600 text-white px-4 py-2 rounded-md hover:bg-indigo-700 transition-colors"
-                          >
-                            YES
-                          </button>
-                          <button
-                            onClick={() => handleReprocessResponse('no')}
-                            className="bg-gray-500 text-white px-4 py-2 rounded-md hover:bg-gray-600 transition-colors"
-                          >
-                            NO
-                          </button>
+                    <div className="bg-white px-8 py-6 rounded-lg shadow-md w-full max-w-md">
+                      <div className="flex justify-around items-center space-x-6">
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-600">Success</p>
+                          <p className="text-3xl font-bold text-green-600 mt-1">{idocSuccessCount}</p>
+                        </div>
+                        <div className="text-center">
+                          <p className="text-sm font-medium text-gray-600">Errors</p>
+                          <p className="text-3xl font-bold text-red-500 mt-1">{idocFailureCount}</p>
                         </div>
                       </div>
-                    )}
+                    </div>
+                  </div>
+                </div>
+              )}
 
-                    {/* Sync Results and Updated Table */}
-                    {endConversation && (
+              {/* Thanks Message */}
+              {thanksMsg && (
+                <div className="max-w-4xl mx-auto mb-6">
+                  <div className="bg-indigo-50 border border-indigo-200 p-8 rounded-lg shadow-sm">
+                    <div className="flex items-center space-x-4">
+                      <div className="text-indigo-500 text-3xl">🙏</div>
                       <div>
-                        <SyncResultsComponent syncResults={syncResults} />
-                        <h3 className="text-lg font-semibold mb-2">{responseData.finalResponse.updatedTableTitle}</h3>
-                        <ResponsiveTable
-                          data={updatedIdocTableData}
-                          title=""
-                          className="overflow-x-auto"
-                        />
+                        <h3 className="text-2xl font-semibold text-indigo-800">Thank you for choosing SAP Support!</h3>
+                        <p className="text-indigo-700 mt-2">We're glad we could help you with your IDOC inquiry.</p>
                       </div>
-                    )}
+                    </div>
                   </div>
                 </div>
-              ) : null
-            ) : isLoading && !Object.values(loadingStates).some(state => state.visible) ? (
-              <div className="mb-6">
-                <div className="bg-white border border-gray-200 p-4 rounded-lg shadow-sm max-w-md">
-                  <div className="flex items-center space-x-2">
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
-                    <div className="w-2 h-2 bg-gray-400 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+              )}
+
+              {/* Main Response Content */}
+              {loadingStates.response.visible && (
+                <div className="w-full">
+                  {loadingStates.response.loading ? (
+                    <div className="max-w-4xl mx-auto">
+                      <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
+                        <div className="flex items-center space-x-3">
+                          <div className="w-5 h-5 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
+                          <p className="text-gray-600">{getLoadingMessage('response')}</p>
+                        </div>
+                      </div>
+                    </div>
+                  ) : responseData.finalResponse && !noDataFound ? (
+                    <div className="w-full">
+                      <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
+                        {/* Agent Result Title */}
+                        <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b border-gray-200 pb-3">
+                          {responseData.finalResponse.idocAgentTitle}
+                        </h2>
+
+                        {/* Master Data Table */}
+                        <ResponsiveTable
+                          data={idocTableData}
+                          title={responseData.finalResponse.masterDataTitle}
+                        />
+
+                        {/* Running Command */}
+                        <div className="mb-6">
+                          <p className="font-semibold mb-2 text-gray-800">{responseData.finalResponse.syncTitle}</p>
+                          <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
+                            {responseData.finalResponse.syncCommand}
+                          </div>
+                        </div>
+
+                        {/* Reprocess Prompt */}
+                        {showReprocessPrompt && (
+                          <div className="mt-6 bg-indigo-50 p-6 rounded-lg border border-indigo-200">
+                            <p className="font-bold text-indigo-800 mb-4 text-lg">DO YOU WANT TO REPROCESS?</p>
+                            <div className="flex space-x-4">
+                              <button
+                                onClick={() => handleReprocessResponse('yes')}
+                                className="bg-indigo-600 text-white px-6 py-3 rounded-md hover:bg-indigo-700 transition-colors font-medium"
+                              >
+                                YES
+                              </button>
+                              <button
+                                onClick={() => handleReprocessResponse('no')}
+                                className="bg-gray-500 text-white px-6 py-3 rounded-md hover:bg-gray-600 transition-colors font-medium"
+                              >
+                                NO
+                              </button>
+                            </div>
+                          </div>
+                        )}
+
+                        {/* Sync Results and Updated Table */}
+                        {endConversation && (
+                          <div className="mt-6 border-t border-gray-200 pt-6">
+                            <SyncResultsComponent syncResults={syncResults} />
+                            <ResponsiveTable
+                              data={updatedIdocTableData}
+                              title={responseData.finalResponse.updatedTableTitle}
+                            />
+                          </div>
+                        )}
+                      </div>
+                    </div>
+                  ) : null}
+                </div>
+              )}
+
+              {/* Initial Loading */}
+              {isLoading && !Object.values(loadingStates).some(state => state.visible) && (
+                <div className="max-w-4xl mx-auto">
+                  <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: "0ms" }}></div>
+                      <div className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: "150ms" }}></div>
+                      <div className="w-3 h-3 bg-indigo-500 rounded-full animate-bounce" style={{ animationDelay: "300ms" }}></div>
+                    </div>
                   </div>
                 </div>
-              </div>
-            ) : null}
-          </div>
-        </div>
-        {!noDataFound && (
-          <div className="hidden md:block w-1/4 bg-white border-l border-gray-200 overflow-hidden">
-            <div className="p-4 h-full">
-              <RightComponents />
+              )}
             </div>
           </div>
-        )}
+        </div>
       </div>
     </div>
   );
 };
-export default SupportAgent;  
+
+export default SupportAgent;

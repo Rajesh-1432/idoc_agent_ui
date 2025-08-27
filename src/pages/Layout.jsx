@@ -73,8 +73,8 @@ const Layout = () => {
                     <div className="flex items-center justify-between w-full">
 
                         <div className="flex items-center space-x-3">
-                            {/* <img src={logo} alt="logo" className="h-16 w-auto object-contain" /> */}
-                            <h1 className='text-2xl font-bold text-red-600  ml-8 '>CERES</h1>
+                            <img src={logo} alt="logo" className="h-16 w-auto object-contain" />
+                            {/* <h1 className='text-2xl font-bold text-red-600  ml-8 '>CERES</h1> */}
                         </div>
 
                         <h1 className="text-lg font-medium text-gray-800 text-center absolute left-1/2 transform -translate-x-1/2">

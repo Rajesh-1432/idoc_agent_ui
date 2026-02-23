@@ -61,7 +61,7 @@ const SupportAgent = () => {
 
   const fetchIdocData = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/idoc-data`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/idoc-data`);
       const data = await response.json();
       console.log(data);
 
@@ -79,7 +79,7 @@ const SupportAgent = () => {
 
   const updateIdoc = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/idoc-update`, {
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/idoc-update`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',

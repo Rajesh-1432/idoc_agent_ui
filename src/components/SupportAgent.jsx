@@ -46,8 +46,12 @@ const SupportAgent = () => {
 
       const cleanedData = cleanMongoData(data.failed_records);
       setIdocTableData(cleanedData);
-      setIdocSuccessCount(data.success_count);
-      setIdocFailureCount(data.failure_count);
+
+      // ✅ FIX: Parse to integer to avoid NaN when values are strings or undefined
+      const successCount = parseInt(data.success_count, 10) || 0;
+      const failureCount = parseInt(data.failure_count, 10) || 0;
+      setIdocSuccessCount(successCount);
+      setIdocFailureCount(failureCount);
 
       // Check if there's no failure data
       if (!cleanedData || cleanedData.length === 0) {
@@ -373,7 +377,7 @@ const SupportAgent = () => {
                         }`}>
                         {typeof row[columnKey] === 'object' && row[columnKey] !== null
                           ? JSON.stringify(row[columnKey])
-                          : String(row[columnKey] || '')}
+                          : String(row[columnKey] ?? '')}
                       </td>
                     ))}
                   </tr>
@@ -413,6 +417,10 @@ const SupportAgent = () => {
     );
   };
 
+  // ✅ FIX: Use Number() with fallback to 0 to safely compute card values
+  const safeSuccess = Number(idocSuccessCount) || 0;
+  const safeFailure = Number(idocFailureCount) || 0;
+
   const CountCards = () => {
     return (
       <div className="bg-gray-50 border-b border-gray-200 p-4">
@@ -427,7 +435,7 @@ const SupportAgent = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Yearly IDOC Proccess</p>
-                  <p className="text-2xl font-bold text-blue-600">{1500 + idocSuccessCount + idocFailureCount}</p>
+                  <p className="text-2xl font-bold text-blue-600">{1500 + safeSuccess + safeFailure}</p>
                 </div>
               </div>
             </div>
@@ -440,7 +448,7 @@ const SupportAgent = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Monthly IDOC Proccess</p>
-                  <p className="text-2xl font-bold text-amber-400">{500 + idocSuccessCount + idocFailureCount}</p>
+                  <p className="text-2xl font-bold text-amber-400">{500 + safeSuccess + safeFailure}</p>
                 </div>
               </div>
             </div>
@@ -453,7 +461,7 @@ const SupportAgent = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Success as Today</p>
-                  <p className="text-2xl font-bold text-green-600">{300 + idocSuccessCount}</p>
+                  <p className="text-2xl font-bold text-green-600">{300 + safeSuccess}</p>
                 </div>
               </div>
             </div>
@@ -466,7 +474,7 @@ const SupportAgent = () => {
                 </div>
                 <div>
                   <p className="text-sm font-medium text-gray-600">Error as Today</p>
-                  <p className="text-2xl font-bold text-red-600">{idocFailureCount}</p>
+                  <p className="text-2xl font-bold text-red-600">{safeFailure}</p>
                 </div>
               </div>
             </div>
@@ -509,11 +517,11 @@ const SupportAgent = () => {
                       <div className="flex justify-around items-center space-x-6">
                         <div className="text-center">
                           <p className="text-sm font-medium text-gray-600">Success</p>
-                          <p className="text-3xl font-bold text-green-600 mt-1">{idocSuccessCount}</p>
+                          <p className="text-3xl font-bold text-green-600 mt-1">{safeSuccess}</p>
                         </div>
                         <div className="text-center">
                           <p className="text-sm font-medium text-gray-600">Errors</p>
-                          <p className="text-3xl font-bold text-red-500 mt-1">{idocFailureCount}</p>
+                          <p className="text-3xl font-bold text-red-500 mt-1">{safeFailure}</p>
                         </div>
                       </div>
                     </div>

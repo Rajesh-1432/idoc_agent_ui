@@ -26,7 +26,7 @@ const App = () => {
     children: [{
       path: "/",
       element: (
-        <Suspense fallback={<Loading text="Loading Demo1..." />}>
+        <Suspense fallback={<Loading text="Loading Support Agent..." />}>
           <SupportAgent />
         </Suspense>
       )

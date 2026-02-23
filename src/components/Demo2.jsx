@@ -40,7 +40,7 @@ const SupportAgent = () => {
 
   const fetchIdocIssues = async () => {
     try {
-      const response = await fetch(`${import.meta.env.VITE_API_URL}/idoc-issues`);
+      const response = await fetch(`${import.meta.env.VITE_API_URL}/api/idoc-issues`);
       const data = await response.json();
       console.log(data.failed_records);
 

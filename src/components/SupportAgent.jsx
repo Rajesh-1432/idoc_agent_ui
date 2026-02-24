@@ -23,7 +23,6 @@ const SupportAgent = () => {
     if (typeof data === 'object' && data !== null) {
       const cleaned = {};
       for (const [key, value] of Object.entries(data)) {
-        // Skip _id field entirely
         if (key === '_id') {
           continue;
         } else if (typeof value === 'object' && value !== null) {
@@ -47,13 +46,11 @@ const SupportAgent = () => {
       const cleanedData = cleanMongoData(data.failed_records);
       setIdocTableData(cleanedData);
 
-      // ✅ FIX: Parse to integer to avoid NaN when values are strings or undefined
       const successCount = parseInt(data.success_count, 10) || 0;
       const failureCount = parseInt(data.failure_count, 10) || 0;
       setIdocSuccessCount(successCount);
       setIdocFailureCount(failureCount);
 
-      // Check if there's no failure data
       if (!cleanedData || cleanedData.length === 0) {
         setNoDataFound(true);
       }
@@ -67,12 +64,31 @@ const SupportAgent = () => {
     try {
       const response = await fetch(`${import.meta.env.VITE_API_URL}/api/idoc-data`);
       const data = await response.json();
-      console.log(data);
+      console.log('idoc-data raw response:', data);
 
-      const cleanedData = cleanMongoData(data);
+      // Handle both array response and object with a records key
+      let records = data;
+      if (!Array.isArray(data)) {
+        // Try common wrapper keys
+        records =
+          data.records ||
+          data.data ||
+          data.updated_records ||
+          data.idoc_data ||
+          data.results ||
+          null;
+
+        if (!records) {
+          console.warn('Could not find array in /api/idoc-data response. Keys:', Object.keys(data));
+          records = [];
+        }
+      }
+
+      const cleanedData = cleanMongoData(records);
+      console.log('idoc-data cleaned:', cleanedData);
       setUpdatedIdocTableData(cleanedData);
     } catch (error) {
-      console.error('Error fetching IDOC table data:', error);
+      console.error('Error fetching updated IDOC data:', error);
     }
   };
 
@@ -91,11 +107,11 @@ const SupportAgent = () => {
       });
       const data = await response.json();
       setSyncResults(data.results);
-      fetchIdocData();
+      await fetchIdocData();   // await so state is set before render
     } catch (error) {
-      console.error('Error fetching IDOC table data:', error);
+      console.error('Error updating IDOC data:', error);
     }
-  }
+  };
 
   // Each section's loading and visibility state
   const [loadingStates, setLoadingStates] = useState({
@@ -105,8 +121,8 @@ const SupportAgent = () => {
     response: { visible: false, loading: false }
   });
 
-  // Mock response data for the IDOC issue
-  const mockResponseData = {
+  // Static mock metadata (NOT the table data — that comes from live state)
+  const mockResponseMeta = {
     mainCategoryNLP: {
       title: "Categorization",
       runningMessage: "Running: main_nlp_triage_agent_predict_tool(issue_description=psdata idoc sales order issues)",
@@ -125,12 +141,9 @@ const SupportAgent = () => {
     finalResponse: {
       idocAgentTitle: "IDOC Incorrect Entry Agent Result",
       masterDataTitle: "Master Data Table: idoc_status",
-      idocTableData: idocTableData,
       syncTitle: "Running:",
       syncCommand: "sync_idoc_with_sales(user_input=psdata idoc sales order issues)",
-      syncResults: syncResults,
       updatedTableTitle: "Updated Master Data Table: idoc_status",
-      updatedIdocTableData: updatedIdocTableData
     },
     errorResponse: {
       message: "Your query is not related to IDOC issues. Please provide a query related to IDOC problems for proper assistance."
@@ -148,15 +161,12 @@ const SupportAgent = () => {
     startSequentialLoading();
   };
 
-  // Handle reprocess buttons
   const handleReprocessResponse = (choice) => {
     if (choice === 'yes') {
-      // Show updated table and end conversation
       updateIdoc();
       setShowReprocessPrompt(false);
       setEndConversation(true);
     } else {
-      // Just end conversation with thanks
       setShowReprocessPrompt(false);
       setEndConversation(false);
       setThanksMsg(true);
@@ -164,14 +174,12 @@ const SupportAgent = () => {
   };
 
   const startSequentialLoading = () => {
-    // If no data found, skip to thanks message
     if (noDataFound) {
       setIsLoading(false);
       setThanksMsg(true);
       return;
     }
 
-    // Reset all loading states and visibility
     setLoadingStates({
       mainCategoryNLP: { visible: false, loading: false },
       mlSubCategory: { visible: false, loading: false },
@@ -179,13 +187,10 @@ const SupportAgent = () => {
       response: { visible: false, loading: false }
     });
 
-    const timeout = 2500;  // Base timeout for each section
-    const headingDelay = 900;  // Delay before showing next heading
-
-    // Sequential order of components
+    const timeout = 2500;
+    const headingDelay = 900;
     const sequence = ['mainCategoryNLP', 'mlSubCategory', 'nlpSubCategory', 'response'];
 
-    // Execute the sequence
     const executeSequence = (index) => {
       if (index >= sequence.length) {
         setIsLoading(false);
@@ -195,39 +200,33 @@ const SupportAgent = () => {
       const currentItem = sequence[index];
       const nextItem = sequence[index + 1];
 
-      // Make current item visible with loading
       setLoadingStates(prev => ({
         ...prev,
         [currentItem]: { visible: true, loading: true }
       }));
 
-      // Process current item content
       setTimeout(() => {
-        // Update the content of the current item
         setResponseData(prev => ({
           ...prev,
-          [currentItem]: mockResponseData[currentItem]
+          [currentItem]: mockResponseMeta[currentItem]
         }));
 
-        // Mark current item as loaded
         setLoadingStates(prev => ({
           ...prev,
           [currentItem]: { visible: true, loading: false }
         }));
 
-        // Process next item
         if (nextItem) {
           setTimeout(() => {
             executeSequence(index + 1);
           }, headingDelay);
         } else {
           setIsLoading(false);
-          // Set final response
+          // Save only static metadata — NOT table data (use live state instead)
           setResponseData(prev => ({
             ...prev,
-            finalResponse: mockResponseData.finalResponse
+            finalResponse: mockResponseMeta.finalResponse
           }));
-          // Show reprocess prompt only if data exists
           if (!noDataFound) {
             setShowReprocessPrompt(true);
           }
@@ -240,28 +239,25 @@ const SupportAgent = () => {
     }, 500);
   };
 
-  // Get loading messages for each section
   const getLoadingMessage = (section) => {
     const messages = {
-      mainCategoryNLP: mockResponseData.mainCategoryNLP.runningMessage,
-      mlSubCategory: mockResponseData.mlSubCategory.runningMessage,
-      nlpSubCategory: mockResponseData.nlpSubCategory.runningMessage,
+      mainCategoryNLP: mockResponseMeta.mainCategoryNLP.runningMessage,
+      mlSubCategory: mockResponseMeta.mlSubCategory.runningMessage,
+      nlpSubCategory: mockResponseMeta.nlpSubCategory.runningMessage,
       response: "Generating response..."
     };
     return messages[section] || `Loading ${section}...`;
   };
 
-  // Left panel components (ML categories)
   const LeftComponents = () => {
     return (
       <div className="flex flex-col h-full p-6">
         <h1 className="text-2xl font-bold text-gray-800 mb-6 border-b border-gray-200 pb-3">Processing Steps</h1>
 
         <div className="flex flex-col space-y-6 flex-1">
-          {/* Main Category NLP Section */}
           {loadingStates.mainCategoryNLP.visible && (
             <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-indigo-500">
-              <h2 className="text-lg font-semibold mb-3 text-gray-800">{mockResponseData.mainCategoryNLP.title}</h2>
+              <h2 className="text-lg font-semibold mb-3 text-gray-800">{mockResponseMeta.mainCategoryNLP.title}</h2>
               {loadingStates.mainCategoryNLP.loading ? (
                 <div className="flex items-center space-x-3">
                   <div className="w-4 h-4 border-2 border-gray-300 border-t-indigo-500 rounded-full animate-spin"></div>
@@ -275,10 +271,9 @@ const SupportAgent = () => {
             </div>
           )}
 
-          {/* ML Sub Category Section */}
           {loadingStates.mlSubCategory.visible && (
             <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-green-500">
-              <h2 className="text-lg font-semibold mb-3 text-gray-800">{mockResponseData.mlSubCategory.title}</h2>
+              <h2 className="text-lg font-semibold mb-3 text-gray-800">{mockResponseMeta.mlSubCategory.title}</h2>
               {loadingStates.mlSubCategory.loading ? (
                 <div className="flex items-center space-x-3">
                   <div className="w-4 h-4 border-2 border-gray-300 border-t-green-500 rounded-full animate-spin"></div>
@@ -292,10 +287,9 @@ const SupportAgent = () => {
             </div>
           )}
 
-          {/* NLP Sub Category Section */}
           {loadingStates.nlpSubCategory.visible && (
             <div className="bg-gray-50 rounded-lg p-4 border-l-4 border-purple-500">
-              <h2 className="text-lg font-semibold mb-3 text-gray-800">{mockResponseData.nlpSubCategory.title}</h2>
+              <h2 className="text-lg font-semibold mb-3 text-gray-800">{mockResponseMeta.nlpSubCategory.title}</h2>
               {loadingStates.nlpSubCategory.loading ? (
                 <div className="flex items-center space-x-3">
                   <div className="w-4 h-4 border-2 border-gray-300 border-t-purple-500 rounded-full animate-spin"></div>
@@ -313,12 +307,13 @@ const SupportAgent = () => {
     );
   };
 
-  // Create responsive table component with IDOC number as first column
   const ResponsiveTable = ({ data, title }) => {
-    if (!data || data.length === 0) {
+    const firstRow = Array.isArray(data) && data.find(row => row && typeof row === 'object');
+
+    if (!data || !Array.isArray(data) || data.length === 0 || !firstRow) {
       return (
         <div className="mb-6">
-          <h3 className="font-bold text-lg mb-2">{title}</h3>
+          {title && <h3 className="font-bold text-lg mb-2">{title}</h3>}
           <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
             <p className="text-yellow-800">No data available</p>
           </div>
@@ -326,32 +321,21 @@ const SupportAgent = () => {
       );
     }
 
-    // Function to reorder columns with IDOC number first
     const getOrderedColumns = (dataRow) => {
       const allKeys = Object.keys(dataRow);
-
-      // Find IDOC number column (case-insensitive search)
-      const idocKey = allKeys.find(key =>
-        key.toLowerCase().includes('idoc') && key.toLowerCase().includes('number')
-      ) || allKeys.find(key =>
-        key.toLowerCase().includes('idoc_number')
-      ) || allKeys.find(key =>
-        key.toLowerCase().includes('idocnumber')
-      ) || allKeys.find(key =>
-        key.toLowerCase() === 'idoc'
-      );
+      const idocKey =
+        allKeys.find(key => key.toLowerCase().includes('idoc') && key.toLowerCase().includes('number')) ||
+        allKeys.find(key => key.toLowerCase().includes('idoc_number')) ||
+        allKeys.find(key => key.toLowerCase().includes('idocnumber')) ||
+        allKeys.find(key => key.toLowerCase() === 'idoc');
 
       if (idocKey) {
-        // Put IDOC number first, then all other columns
-        const otherKeys = allKeys.filter(key => key !== idocKey);
-        return [idocKey, ...otherKeys];
+        return [idocKey, ...allKeys.filter(key => key !== idocKey)];
       }
-
-      // If no IDOC number column found, return original order
       return allKeys;
     };
 
-    const orderedColumns = getOrderedColumns(data[0]);
+    const orderedColumns = getOrderedColumns(firstRow);
 
     return (
       <div className="mb-6">
@@ -362,19 +346,17 @@ const SupportAgent = () => {
               <thead className="bg-gray-50">
                 <tr>
                   {orderedColumns.map((header, idx) => (
-                    <th key={idx} className={`px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider ${idx === 0 && header.toLowerCase().includes('idoc') ? 'bg-indigo-0' : ''
-                      }`}>
+                    <th key={idx} className="px-4 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
                       {header.replace(/_/g, ' ')}
                     </th>
                   ))}
                 </tr>
               </thead>
               <tbody className="bg-white divide-y divide-gray-200">
-                {data.map((row, rowIdx) => (
+                {data.filter(row => row && typeof row === 'object').map((row, rowIdx) => (
                   <tr key={rowIdx} className={rowIdx % 2 === 0 ? 'bg-white' : 'bg-gray-50'}>
                     {orderedColumns.map((columnKey, cellIdx) => (
-                      <td key={cellIdx} className={`px-4 py-3 text-sm text-gray-700 ${cellIdx === 0 && columnKey.toLowerCase().includes('idoc') ? 'font-semibold bg-indigo-0' : ''
-                        }`}>
+                      <td key={cellIdx} className={`px-4 py-3 text-sm text-gray-700 ${cellIdx === 0 && columnKey.toLowerCase().includes('idoc') ? 'font-semibold' : ''}`}>
                         {typeof row[columnKey] === 'object' && row[columnKey] !== null
                           ? JSON.stringify(row[columnKey])
                           : String(row[columnKey] ?? '')}
@@ -389,8 +371,18 @@ const SupportAgent = () => {
       </div>
     );
   };
-  // Sync results component
+
   const SyncResultsComponent = ({ syncResults }) => {
+    if (!Array.isArray(syncResults) || syncResults.length === 0) {
+      return (
+        <div className="mb-6">
+          <div className="bg-yellow-50 border border-yellow-200 rounded-lg p-4">
+            <p className="text-yellow-800">No sync results available yet.</p>
+          </div>
+        </div>
+      );
+    }
+
     return (
       <div className="mb-6">
         <div className="space-y-4">
@@ -399,7 +391,7 @@ const SupportAgent = () => {
             <div key={idx} className="pl-4 border-l-2 border-indigo-400 bg-indigo-50 p-3 rounded-r">
               <p className="font-bold text-gray-800">{idx + 1}. IDOC Number: {result.idocNumber}</p>
               <ul className="pl-4 mt-2 space-y-1">
-                {result.updates.map((update, updateIdx) => (
+                {Array.isArray(result.updates) && result.updates.map((update, updateIdx) => (
                   <li key={updateIdx} className="text-sm">
                     <span className="font-medium">{update.field}</span>:
                     <span className="ml-1 bg-gray-100 px-1 rounded">{update.value}</span>
@@ -417,7 +409,6 @@ const SupportAgent = () => {
     );
   };
 
-  // ✅ FIX: Use Number() with fallback to 0 to safely compute card values
   const safeSuccess = Number(idocSuccessCount) || 0;
   const safeFailure = Number(idocFailureCount) || 0;
 
@@ -485,11 +476,11 @@ const SupportAgent = () => {
   };
 
   return (
-    <div className="flex flex-col h-screen bg-gray-50 ">
+    <div className="flex flex-col h-screen bg-gray-50">
       <CountCards />
 
-      <div className="flex flex-1 overflow-hidden ">
-        {/* Left Panel - Only visible when processing */}
+      <div className="flex flex-1 overflow-hidden">
+        {/* Left Panel */}
         {!noDataFound && Object.values(loadingStates).some(state => state.visible) && (
           <div className="w-80 bg-white border-r border-gray-200 flex-shrink-0">
             <div className="h-full overflow-y-auto">
@@ -502,7 +493,8 @@ const SupportAgent = () => {
         <div className="flex-1 min-w-0">
           <div className="h-full overflow-y-auto">
             <div className="p-6 max-w-none">
-              {/* No Data Found Message */}
+
+              {/* No Data Found */}
               {noDataFound && (
                 <div className="max-w-4xl mx-auto">
                   <div className="flex flex-col bg-green-50 border border-green-200 p-8 rounded-lg shadow-sm items-center space-y-6">
@@ -559,18 +551,16 @@ const SupportAgent = () => {
                   ) : responseData.finalResponse && !noDataFound ? (
                     <div className="w-full">
                       <div className="bg-white border border-gray-200 p-6 rounded-lg shadow-sm">
-                        {/* Agent Result Title */}
                         <h2 className="text-2xl font-bold mb-6 text-gray-800 border-b border-gray-200 pb-3">
                           {responseData.finalResponse.idocAgentTitle}
                         </h2>
 
-                        {/* Master Data Table */}
+                        {/* ✅ FIX: Use live state idocTableData, NOT responseData.finalResponse.idocTableData */}
                         <ResponsiveTable
                           data={idocTableData}
                           title={responseData.finalResponse.masterDataTitle}
                         />
 
-                        {/* Running Command */}
                         <div className="mb-6">
                           <p className="font-semibold mb-2 text-gray-800">{responseData.finalResponse.syncTitle}</p>
                           <div className="bg-gray-900 text-green-400 p-4 rounded-lg font-mono text-sm">
@@ -603,6 +593,8 @@ const SupportAgent = () => {
                         {endConversation && (
                           <div className="mt-6 border-t border-gray-200 pt-6">
                             <SyncResultsComponent syncResults={syncResults} />
+
+                            {/* ✅ FIX: Use live state updatedIdocTableData, NOT a stale snapshot */}
                             <ResponsiveTable
                               data={updatedIdocTableData}
                               title={responseData.finalResponse.updatedTableTitle}
@@ -627,6 +619,7 @@ const SupportAgent = () => {
                   </div>
                 </div>
               )}
+
             </div>
           </div>
         </div>
